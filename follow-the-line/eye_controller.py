@@ -16,7 +16,8 @@ class EyeController:
 
     erosion_kernel = np.ones((3, 3), np.uint8)
 
-    def __init__(self, test_image = None):
+    def __init__(self, dead_zone: float = 0.05, test_image=None):
+        self.dead_zone = dead_zone
         self.centroid2_y = None
         self.centroid1_y = None
         self.current_image = None
@@ -49,7 +50,7 @@ class EyeController:
         d = np.argwhere(mask > 0)
 
         if d.shape[0] == 0:
-            return self.view_center, self.view_center, 0, 0
+            return self.centroid1, self.centroid2, 0, 0
 
         y1 = d[0, 0]
         b1 = np.nonzero(mask[y1:y1 + 1, :])[1]
@@ -62,17 +63,28 @@ class EyeController:
             c2 = b2[b2.shape[0] // 2]
         except Exception as ex:
             print(f"c1={y1}, y2={y2}, b1 shape: {b1.shape}, b2 shape {b2.shape}")
+            c2 = c1
 
         return c1, c2, y1, y2
 
     def initialize(self):
         _, self.view_width, _ = self.__get_image__().shape
         self.view_center = self.view_width // 2
+        self.centroid1 = self.view_center
+        self.centroid2 = self.view_center
+        self.normalized_centroid1 = 0
+        self.normalized_centroid2 = 0
 
     def update(self):
         self.centroid1, self.centroid2, self.centroid1_y, self.centroid2_y = self.__get_centroids__()
         self.normalized_centroid1 = (self.centroid1 - self.view_center) / self.view_center
         self.normalized_centroid2 = (self.centroid2 - self.view_center) / self.view_center
+
+        if abs(self.normalized_centroid1) < self.dead_zone:
+            self.normalized_centroid1 = 0.0
+
+        if abs(self.normalized_centroid2) < self.dead_zone:
+            self.normalized_centroid2 = 0.0
 
     def draw_centroids(self):
         self.current_image = cv2.drawMarker(self.current_image, (self.view_center, self.centroid1_y),
@@ -92,6 +104,7 @@ class EyeController:
                                       (self.centroid2, self.centroid2_y),
                                       color=bgr_color_green,
                                       thickness=2)
+
 
 
 if __name__ == "__main__":

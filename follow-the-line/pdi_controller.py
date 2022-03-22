@@ -1,9 +1,12 @@
 class PDIController:
-    def __init__(self, kp=0.0, kd=0.0, ki=0.0):
+    def __init__(self, kp=0.0, kd=0.0, ki=0.0, pdi_clamp=3.0, i_clamp=2.5):
         # s = kp + kd + ki
         self.Kp = kp
         self.Kd = kd
         self.Ki = ki
+
+        self.pdi_clamp = pdi_clamp
+        self.i_clamp = i_clamp
 
         self.error = 0
         self.prev_error = 0.
@@ -16,10 +19,14 @@ class PDIController:
 
     def update(self, error, delta_time: float = 1.0):
         self.P = error
+
         self.D = (error - self.prev_error) / delta_time
-        self.I = (self.I + error) * delta_time
+
+        self.I = self.I + error * delta_time
+        self.I = max(min(self.I, self.i_clamp), -self.i_clamp)
 
         self.PDI = (self.P * self.Kp) + (self.I * self.Ki) + (self.D * self.Kd)
+        self.PDI = max(min(self.PDI, self.pdi_clamp), -self.pdi_clamp)
 
         self.prev_error = error
 
